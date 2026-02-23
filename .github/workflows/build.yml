@@ -26,21 +26,16 @@ jobs:
     needs: info
     strategy:
       matrix:
-        targets:
-          - name: windows-2022 x64
-            os: windows-2022
+        include:
+          - os: windows-2022
             arch: x64
-          - name: ubuntu-24.04 x64
-            os: ubuntu-24.04
+          - os: ubuntu-24.04
             arch: x64
-          - name: ubuntu-24.04 arm64
-            os: ubuntu-24.04
+          - os: ubuntu-24.04
             arch: arm64
-          - name: macos-14 x64
-            os: macos-14
+          - os: macos-14
             arch: x64
-          - name: macos-14 arm64
-            os: macos-14
+          - os: macos-14
             arch: arm64
     runs-on: ${{ matrix.os }}
     env:
@@ -56,16 +51,6 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Install build system tools (platform specific)
-        run: |
-          if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
-            sudo apt-get update
-            sudo apt-get install -y build-essential cmake ninja-build pkg-config zip python3-pip
-          elif [ "${{ matrix.os }}" = "macos-14" ]; then
-            brew update || true
-            brew install cmake ninja python pkg-config zip || true
-          fi
-
       - name: Install tools and build on Windows
         if: ${{ matrix.os == 'windows-2022' }}
         shell: pwsh
@@ -79,6 +64,15 @@ jobs:
         if: ${{ matrix.os != 'windows-2022' }}
         run: |
           set -e
+
+          if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential cmake ninja-build pkg-config zip python3-pip
+          elif [ "${{ matrix.os }}" = "macos-14" ]; then
+            brew update || true
+            brew install cmake ninja python pkg-config zip || true
+          fi
+
           mkdir -p build
           CMAKE_PLATFORM_FLAGS=()
           if [ "${{ matrix.os }}" = "macos-14" ]; then
@@ -92,17 +86,20 @@ jobs:
           cmake --build build --config Release -j $(nproc || sysctl -n hw.ncpu)
           cmake --install build --prefix install --config Release
 
-      - name: Package artifact
+      - name: Package artifact (Windows)
+        if: ${{ matrix.os == 'windows-2022' }}
+        shell: pwsh
+        run: |
+          $ART_NAME = "swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip"
+          Compress-Archive -Path 'install\*' -DestinationPath "$Env:GITHUB_WORKSPACE\$ART_NAME" -Force
+
+      - name: Package artifact (Linux/macOS)
+        if: ${{ matrix.os != 'windows-2022' }}
         run: |
           ART_NAME=swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip
-          if [ "${{ matrix.os }}" = "windows-2022" ]; then
-            Compress-Archive -Path install\* -DestinationPath $env:GITHUB_WORKSPACE\$ART_NAME -Force"
-          else
-            cd install || true
-            zip -r ../$ART_NAME . || true
-            cd ..
-          fi
-
+          cd install || true
+          zip -r ../$ART_NAME . || true
+          cd ..
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
