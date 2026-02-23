@@ -1,0 +1,134 @@
+name: build-swiftshader
+
+on:
+  schedule:
+    - cron: "0 0 * * 0"
+  push:
+    branches:
+      - main
+
+jobs:
+  info:
+    runs-on: ubuntu-24.04
+    outputs:
+      SWIFTSHADER_COMMIT: ${{ steps.info.outputs.SWIFTSHADER_COMMIT }}
+      BUILD_DATE: ${{ steps.info.outputs.BUILD_DATE }}
+
+    steps:
+      - name: Get Latest Commit Id
+        id: info
+        run: |
+          echo SWIFTSHADER_COMMIT=`git ls-remote https://swiftshader.googlesource.com/SwiftShader HEAD | awk '{ print $1 }'` >> ${GITHUB_OUTPUT}
+          echo BUILD_DATE=`date +'%Y-%m-%d'` >> ${GITHUB_OUTPUT}
+
+  build:
+    needs: info
+    strategy:
+      matrix:
+        targets:
+          - name: windows-2022 x64
+            os: windows-2022
+            arch: x64
+          - name: ubuntu-24.04 x64
+            os: ubuntu-24.04
+            arch: x64
+          - name: ubuntu-24.04 arm64
+            os: ubuntu-24.04
+            arch: arm64
+          - name: macos-14 x64
+            os: macos-14
+            arch: x64
+          - name: macos-14 arm64
+            os: macos-14
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    env:
+      SWIFTSHADER_COMMIT: ${{ needs.info.outputs.SWIFTSHADER_COMMIT }}
+      BUILD_DATE: ${{ needs.info.outputs.BUILD_DATE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install build system tools (platform specific)
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential cmake ninja-build pkg-config zip python3-pip
+          elif [ "${{ matrix.os }}" = "macos-14" ]; then
+            brew update || true
+            brew install cmake ninja python pkg-config zip || true
+          fi
+
+      - name: Install tools and build on Windows
+        if: ${{ matrix.os == 'windows-2022' }}
+        shell: pwsh
+        run: |
+          choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System' python3 ninja zip || true
+          cmake -S . -B build -G Ninja -A x64 -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release -- /m
+          cmake --install build --prefix install --config Release
+
+      - name: Install tools and build on Linux and macOS
+        if: ${{ matrix.os != 'windows-2022' }}
+        run: |
+          set -e
+          mkdir -p build
+          CMAKE_PLATFORM_FLAGS=()
+          if [ "${{ matrix.os }}" = "macos-14" ]; then
+            if [ "${{ matrix.arch }}" = "arm64" ]; then
+              CMAKE_PLATFORM_FLAGS+=("-DCMAKE_OSX_ARCHITECTURES=arm64")
+            else
+              CMAKE_PLATFORM_FLAGS+=("-DCMAKE_OSX_ARCHITECTURES=x86_64")
+            fi
+          fi
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ${CMAKE_PLATFORM_FLAGS[@]}
+          cmake --build build --config Release -j $(nproc || sysctl -n hw.ncpu)
+          cmake --install build --prefix install --config Release
+
+      - name: Package artifact
+        run: |
+          ART_NAME=swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip
+          if [ "${{ matrix.os }}" = "windows-2022" ]; then
+            Compress-Archive -Path install\* -DestinationPath $env:GITHUB_WORKSPACE\$ART_NAME -Force"
+          else
+            cd install || true
+            zip -r ../$ART_NAME . || true
+            cd ..
+          fi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}
+          path: swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    runs-on: ubuntu-24.04
+    needs: [info, build]
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Create GitHub Release (notes)
+        run: |
+          echo "[swiftshader commit](https://swiftshader.googlesource.com/SwiftShader/+/${{ needs.info.outputs.SWIFTSHADER_COMMIT }})" > notes.txt
+          gh release create ${{ needs.info.outputs.BUILD_DATE }} -R "${GITHUB_REPOSITORY}" -t "${{ needs.info.outputs.BUILD_DATE }}" -F notes.txt || true
+
+      - name: Get Artifacts From Build Steps
+        uses: actions/download-artifact@v4
+        with:
+          pattern: swiftshader-*-${{ needs.info.outputs.BUILD_DATE }}-*.zip
+          merge-multiple: true
+
+      - name: Upload Artifacts to GitHub Release
+        run: |
+          gh release upload "${{ needs.info.outputs.BUILD_DATE }}" swiftshader-*-${{ needs.info.outputs.BUILD_DATE }}-*.zip -R "${GITHUB_REPOSITORY}" || true
