@@ -43,8 +43,10 @@ jobs:
       BUILD_DATE: ${{ needs.info.outputs.BUILD_DATE }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Git clone
+        run: |
+          git clone --depth 1 --branch main https://swiftshader.googlesource.com/SwiftShader.git
+          cd SwiftShader
 
       - name: Setup Python
         uses: actions/setup-python@v4
