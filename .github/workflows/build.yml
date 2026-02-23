@@ -57,8 +57,10 @@ jobs:
         shell: pwsh
         run: |
           cd SwiftShader
-          choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System' python3 ninja zip || true
-          cmake -S . -B build -G Ninja -A x64 -DCMAKE_BUILD_TYPE=Release
+          choco install -y cmake --installargs "ADD_CMAKE_TO_PATH=System"
+          choco install -y python ninja zip
+
+          cmake -S . -B build -G Ninja -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build build --config Release -- /m
           cmake --install build --prefix install --config Release
 
@@ -85,7 +87,7 @@ jobs:
               CMAKE_PLATFORM_FLAGS+=("-DCMAKE_OSX_ARCHITECTURES=x86_64")
             fi
           fi
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ${CMAKE_PLATFORM_FLAGS[@]}
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ${CMAKE_PLATFORM_FLAGS[@]} -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build build --config Release -j $(nproc || sysctl -n hw.ncpu)
           cmake --install build --prefix install --config Release
 
