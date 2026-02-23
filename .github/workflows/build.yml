@@ -45,7 +45,7 @@ jobs:
     steps:
       - name: Git clone
         run: |
-          git clone --depth 1 --branch main https://swiftshader.googlesource.com/SwiftShader.git
+          git clone --depth 1 --branch main https://swiftshader.googlesource.com/SwiftShader
           cd SwiftShader
 
       - name: Setup Python
