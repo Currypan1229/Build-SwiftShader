@@ -61,7 +61,7 @@ jobs:
           choco install -y cmake --installargs "ADD_CMAKE_TO_PATH=System"
           choco install -y python ninja zip
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release -- /m
+          cmake --build build --config Release
           cmake --install build --prefix install --config Release
 
       - name: Install tools and build on Linux and macOS
