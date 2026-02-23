@@ -57,7 +57,6 @@ jobs:
         shell: pwsh
         run: |
           cd SwiftShader
-          choco install -y cmake --installargs "ADD_CMAKE_TO_PATH=System"
           choco install -y python ninja zip
 
           cmake -S . -B build -G Ninja -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
