@@ -114,17 +114,15 @@ jobs:
         if: ${{ matrix.os != 'windows-2022' }}
         run: |
           cd SwiftShader
-          ls .
           cd install
-          ls .
-          zip -r ${{ env.GITHUB_WORKSPACE }}\${{ env.ART_NAME }}.zip .
+          zip -r "${{ github.workspace }}\${{ env.ART_NAME }}.zip" .
           cd ..
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ART_NAME }}
-          path: ${{ env.GITHUB_WORKSPACE }}\${{ env.ART_NAME }}.zip
+          path: ${{ github.workspace }}\${{ env.ART_NAME }}.zip
           if-no-files-found: error
           compression-level: 0
 
