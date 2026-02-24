@@ -79,7 +79,7 @@ jobs:
         shell: pwsh
         run: |
           cd SwiftShader
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5.0
           cmake --build build --config Release --parallel
           cmake --install build --prefix install --config Release
 
