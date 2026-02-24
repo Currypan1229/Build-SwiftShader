@@ -47,26 +47,21 @@ jobs:
     steps:
       - name: Git clone
         run: |
-          git clone --depth 1 https://swiftshader.googlesource.com/SwiftShader.git
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
+          git clone --depth 1 --filter=tree:0 https://swiftshader.googlesource.com/SwiftShader.git
 
       - name: Install tools and build on Windows
         if: ${{ matrix.os == 'windows-2022' }}
         shell: pwsh
         run: |
           choco install -y cmake --installargs "ADD_CMAKE_TO_PATH=System"
-          choco install -y python ninja zip
+          choco install -y ninja zip
 
       - name: Install tools and build on Ubuntu
         if: ${{ matrix.os == 'ubuntu-24.04' }}
         run: |
           set -e
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build pkg-config zip python3-pip
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config zip
 
       - name: Install tools and build on macOS
         if: ${{ matrix.os == 'macos-14' }}
@@ -79,15 +74,15 @@ jobs:
         if: ${{ matrix.os == 'windows-2022' }}
         shell: pwsh
         run: |
-          $env:CPU_CORES=$(nproc || sysctl -n hw.ncpu)
-          $env:THREADS=$(( CPU_CORES * 4 ))
+          $CPU_CORES=$env:NUMBER_OF_PROCESSORS
+          $THREADS=[int]$CPU_CORES * 4
 
           cd SwiftShader
           $env:CMAKE_POLICY_DEFAULT_CMP0000 = "NEW"
           $env:CMAKE_POLICY_VERSION_MINIMUM = "3.5"
 
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --parallel $env:THREADS
+          cmake --build build --config Release -j $THREADS --parallel $THREADS
           cmake --install build --prefix install --config Release
 
       - name: Build on Linux/macOS
