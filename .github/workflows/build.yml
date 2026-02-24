@@ -79,16 +79,23 @@ jobs:
         if: ${{ matrix.os == 'windows-2022' }}
         shell: pwsh
         run: |
+          $env:CPU_CORES=$(nproc || sysctl -n hw.ncpu)
+          $env:THREADS=$(( CPU_CORES * 4 ))
+
           cd SwiftShader
           $env:CMAKE_POLICY_DEFAULT_CMP0000 = "NEW"
           $env:CMAKE_POLICY_VERSION_MINIMUM = "3.5"
+
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --parallel
+          cmake --build build --config Release --parallel $env:THREADS
           cmake --install build --prefix install --config Release
 
       - name: Build on Linux/macOS
         if: ${{ matrix.os != 'windows-2022' }}
         run: |
+          CPU_CORES=$(nproc || sysctl -n hw.ncpu)
+          THREADS=$(( CPU_CORES * 4 ))
+
           cd SwiftShader
           mkdir -p build
           CMAKE_PLATFORM_FLAGS=()
@@ -100,7 +107,7 @@ jobs:
             fi
           fi
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ${CMAKE_PLATFORM_FLAGS[@]} -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build build --config Release -j $(nproc || sysctl -n hw.ncpu) --parallel $(nproc || sysctl -n hw.ncpu)
+          cmake --build build --config Release -j $THREADS --parallel $THREADS
           cmake --install build --prefix install --config Release
 
       - name: Package artifact (Windows)
