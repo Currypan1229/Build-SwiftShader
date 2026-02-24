@@ -42,6 +42,7 @@ jobs:
     env:
       SWIFTSHADER_COMMIT: ${{ needs.info.outputs.SWIFTSHADER_COMMIT }}
       BUILD_DATE: ${{ needs.info.outputs.BUILD_DATE }}
+      ART_NAME: swiftshader-${{ matrix.os }}-${{ matrix.arch }}
 
     steps:
       - name: Git clone
@@ -106,28 +107,24 @@ jobs:
         if: ${{ matrix.os == 'windows-2022' }}
         shell: pwsh
         run: |
-          $ART_NAME = "swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip"
-
           dir install
-          Compress-Archive -Path 'install\*' -DestinationPath "$Env:GITHUB_WORKSPACE\$ART_NAME" -Force
+          Compress-Archive -Path 'install\*' -DestinationPath "$Env:GITHUB_WORKSPACE\${{ env.ART_NAME }}.zip" -Force
 
       - name: Package artifact (Linux/macOS)
         if: ${{ matrix.os != 'windows-2022' }}
         run: |
-          ART_NAME=swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip
-
           cd SwiftShader
           ls .
           cd install
           ls .
-          zip -r ../$ART_NAME .
+          zip -r ${{ env.GITHUB_WORKSPACE }}\${{ env.ART_NAME }}.zip .
           cd ..
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: swiftshader-${{ env.BUILD_DATE }}-${{ matrix.arch }}-${{ matrix.os }}
-          path: swiftshader-${{ env.BUILD_DATE }}-${{ matrix.arch }}-${{ matrix.os }}.zip
+          name: ${{ env.ART_NAME }}
+          path: ${{ env.GITHUB_WORKSPACE }}\${{ env.ART_NAME }}.zip
           if-no-files-found: error
           compression-level: 0
 
