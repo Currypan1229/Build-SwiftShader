@@ -108,6 +108,7 @@ jobs:
         run: |
           $ART_NAME = "swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip"
 
+          dir install
           Compress-Archive -Path 'install\*' -DestinationPath "$Env:GITHUB_WORKSPACE\$ART_NAME" -Force
 
       - name: Package artifact (Linux/macOS)
@@ -115,7 +116,10 @@ jobs:
         run: |
           ART_NAME=swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip
 
+          cd SwiftShader
+          ls .
           cd install
+          ls .
           zip -r ../$ART_NAME .
           cd ..
 
