@@ -60,24 +60,32 @@ jobs:
           choco install -y cmake --installargs "ADD_CMAKE_TO_PATH=System"
           choco install -y python ninja zip
 
-          cd SwiftShader
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release -j $(nproc || sysctl -n hw.ncpu) --parallel $(nproc || sysctl -n hw.ncpu)
-          cmake --install build --prefix install --config Release
-
-      - name: Install tools and build on Linux and macOS
-        if: ${{ matrix.os != 'windows-2022' }}
+      - name: Install tools and build on Ubuntu
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
         run: |
           set -e
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config zip python3-pip
 
-          if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
-            sudo apt-get update
-            sudo apt-get install -y build-essential cmake ninja-build pkg-config zip python3-pip
-          elif [ "${{ matrix.os }}" = "macos-14" ]; then
-            brew update || true
-            brew install zip || true
-          fi
+      - name: Install tools and build on macOS
+        if: ${{ matrix.os == 'macos-14' }}
+        run: |
+          set -e
+          brew update || true
+          brew install zip || true
 
+      - name: Build on Windows
+        if: ${{ matrix.os == 'windows-2022' }}
+        shell: pwsh
+        run: |
+          cd SwiftShader
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel
+          cmake --install build --prefix install --config Release
+
+      - name: Install tools and build on Linux/macOS
+        if: ${{ matrix.os == 'windows-2022' }}
+        run: |
           cd SwiftShader
           mkdir -p build
           CMAKE_PLATFORM_FLAGS=()
