@@ -57,18 +57,18 @@ jobs:
         if: ${{ matrix.os == 'windows-2022' }}
         shell: pwsh
         run: |
-          cd SwiftShader
           choco install -y cmake --installargs "ADD_CMAKE_TO_PATH=System"
           choco install -y python ninja zip
+
+          cd SwiftShader
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release
+          cmake --build build --config Release -j $(nproc || sysctl -n hw.ncpu) --parallel $(nproc || sysctl -n hw.ncpu)
           cmake --install build --prefix install --config Release
 
       - name: Install tools and build on Linux and macOS
         if: ${{ matrix.os != 'windows-2022' }}
         run: |
           set -e
-          cd SwiftShader
 
           if [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
             sudo apt-get update
@@ -78,6 +78,7 @@ jobs:
             brew install zip || true
           fi
 
+          cd SwiftShader
           mkdir -p build
           CMAKE_PLATFORM_FLAGS=()
           if [ "${{ matrix.os }}" = "macos-14" ]; then
@@ -88,7 +89,7 @@ jobs:
             fi
           fi
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ${CMAKE_PLATFORM_FLAGS[@]} -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build build --config Release -j $(nproc || sysctl -n hw.ncpu)
+          cmake --build build --config Release -j $(nproc || sysctl -n hw.ncpu) --parallel $(nproc || sysctl -n hw.ncpu)
           cmake --install build --prefix install --config Release
 
       - name: Package artifact (Windows)
@@ -96,15 +97,18 @@ jobs:
         shell: pwsh
         run: |
           $ART_NAME = "swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip"
+
           Compress-Archive -Path 'install\*' -DestinationPath "$Env:GITHUB_WORKSPACE\$ART_NAME" -Force
 
       - name: Package artifact (Linux/macOS)
         if: ${{ matrix.os != 'windows-2022' }}
         run: |
           ART_NAME=swiftshader-${{ matrix.arch }}-${{ env.BUILD_DATE }}-${{ matrix.os }}.zip
-          cd install || true
-          zip -r ../$ART_NAME . || true
+
+          cd install
+          zip -r ../$ART_NAME .
           cd ..
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
